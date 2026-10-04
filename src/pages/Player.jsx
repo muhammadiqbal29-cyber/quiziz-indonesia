@@ -1,0 +1,189 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Peer } from 'peerjs';
+
+const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
+
+export default function Player() {
+  const [searchParams] = useSearchParams();
+  const pin = searchParams.get('pin');
+  
+  const [name, setName] = useState('');
+  const [isJoined, setIsJoined] = useState(false);
+  const [gameState, setGameState] = useState('LOBBY'); // LOBBY, QUESTION, ANSWER_RESULT, END
+  const [question, setQuestion] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [myAnswer, setMyAnswer] = useState(null);
+  
+  // Result state
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [score, setScore] = useState(0);
+  const [memeUrl, setMemeUrl] = useState('');
+  
+  const connRef = useRef(null);
+  const memesRef = useRef([]);
+
+  useEffect(() => {
+    // Fetch memes
+    fetch('https://api.imgflip.com/get_memes')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          memesRef.current = data.data.memes;
+        }
+      });
+  }, []);
+
+  const handleJoin = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    const peer = new Peer();
+    
+    peer.on('open', () => {
+      const conn = peer.connect(pin);
+      
+      conn.on('open', () => {
+        setIsJoined(true);
+        connRef.current = conn;
+        conn.send({ type: 'JOIN', name });
+      });
+
+      conn.on('data', (data) => {
+        if (data.type === 'STATE_UPDATE') {
+          setGameState(data.state);
+          if (data.state === 'QUESTION') {
+            setQuestion(data.question);
+            setTimeLeft(data.timeLeft);
+            setMyAnswer(null);
+          } else if (data.state === 'ANSWER_RESULT') {
+            setIsCorrect(data.isCorrect);
+            setScore(data.score);
+            // Pick a random meme
+            if (memesRef.current.length > 0) {
+              const randomMeme = memesRef.current[Math.floor(Math.random() * memesRef.current.length)];
+              setMemeUrl(randomMeme.url);
+            }
+          }
+        }
+      });
+    });
+  };
+
+  const submitAnswer = (index) => {
+    if (myAnswer !== null || gameState !== 'QUESTION') return;
+    setMyAnswer(index);
+    if (connRef.current) {
+      connRef.current.send({ type: 'ANSWER', answer: index });
+    }
+  };
+
+  useEffect(() => {
+    let timer;
+    if (gameState === 'QUESTION' && timeLeft > 0 && myAnswer === null) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [gameState, timeLeft, myAnswer]);
+
+  if (!isJoined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
+        <form onSubmit={handleJoin} className="glass-panel rounded-3xl p-8 max-w-sm w-full text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Siapa namamu?</h2>
+          <input
+            type="text"
+            placeholder="Ketik nama di sini..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-center text-xl font-bold mb-6 focus:outline-none focus:border-indigo-500"
+            required
+          />
+          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition">
+            MASUK GAME
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex flex-col font-sans">
+      
+      {/* Header */}
+      <div className="bg-white p-4 shadow-md flex justify-between items-center">
+        <div className="font-bold text-gray-600">{name}</div>
+        <div className="bg-indigo-100 text-indigo-700 px-4 py-1 rounded-full font-black text-xl">
+          Skor: {score}
+        </div>
+      </div>
+
+      <div className="flex-grow flex flex-col items-center justify-center p-4">
+        
+        {gameState === 'LOBBY' && (
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-600 animate-pulse">Menunggu Host Memulai...</div>
+            <p className="mt-4 text-gray-500">Perhatikan layar di depan!</p>
+          </div>
+        )}
+
+        {gameState === 'QUESTION' && (
+          <div className="w-full max-w-2xl text-center">
+            <div className="text-5xl font-black text-indigo-600 mb-10">{timeLeft}</div>
+            
+            {myAnswer === null ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {question?.options.map((opt, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => submitAnswer(i)}
+                    className={`${colors[i % 4]} hover:opacity-80 text-white font-bold py-16 px-6 rounded-2xl shadow-lg transform transition active:scale-95 text-2xl h-48 flex items-center justify-center`}
+                  >
+                    Pilihan {['A', 'B', 'C', 'D'][i]}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-2xl font-bold text-gray-500 animate-pulse mt-10">
+                Menunggu pemain lain...
+              </div>
+            )}
+          </div>
+        )}
+
+        {gameState === 'ANSWER_RESULT' && (
+          <div className={`w-full max-w-lg bg-white rounded-3xl p-8 shadow-2xl text-center border-t-8 ${isCorrect ? 'border-green-500' : 'border-red-500'}`}>
+            <h2 className={`text-4xl font-black mb-2 ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
+              {isCorrect ? 'BENAR!' : 'SALAH!'}
+            </h2>
+            <p className="text-gray-500 font-medium mb-6">
+              {isCorrect ? '+100 Poin & Bonus Waktu' : 'Tetap semangat!'}
+            </p>
+            
+            {memeUrl && (
+              <div className="mt-4 rounded-xl overflow-hidden shadow-lg border-4 border-gray-100">
+                <img src={memeUrl} alt="Meme" className="w-full h-auto max-h-64 object-contain bg-black" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {gameState === 'END' && (
+          <div className="text-center">
+            <h2 className="text-4xl font-black text-indigo-600 mb-4">Permainan Selesai!</h2>
+            <p className="text-xl text-gray-600">Terima kasih sudah bermain.</p>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
