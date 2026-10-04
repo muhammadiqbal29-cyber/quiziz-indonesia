@@ -26,7 +26,13 @@ export default function Host() {
     peer.on('connection', (conn) => {
       conn.on('data', (data) => {
         if (data.type === 'JOIN') {
-          setPlayers((prev) => [...prev, { id: conn.peer, name: data.name, score: 0, currentAnswer: null }]);
+          setPlayers((prev) => {
+            // Cek apakah pemain dengan ID yang sama atau Nama yang sama sudah ada
+            if (prev.find(p => p.id === conn.peer || p.name === data.name)) {
+              return prev; // Jangan tambahkan jika sudah ada
+            }
+            return [...prev, { id: conn.peer, name: data.name, score: 0, currentAnswer: null }];
+          });
           connectionsRef.current[conn.peer] = conn;
           // Send current state back to player
           conn.send({ type: 'STATE_UPDATE', state: 'LOBBY' });
