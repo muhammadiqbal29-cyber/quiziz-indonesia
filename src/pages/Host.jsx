@@ -125,7 +125,7 @@ export default function Host() {
       };
     });
     setPlayers(updatedPlayers);
-    setGameState('LEADERBOARD');
+    setGameState('ANSWER_REVIEW'); // Berhenti di sini dulu untuk menampilkan jawaban benar
 
     // Send result to each player individually so they know if they were correct (for memes)
     Object.values(connectionsRef.current).forEach(conn => {
@@ -138,6 +138,10 @@ export default function Host() {
         score: player?.score || 0
       });
     });
+  };
+
+  const showLeaderboard = () => {
+    setGameState('LEADERBOARD');
   };
 
   const nextQuestion = () => {
@@ -218,6 +222,31 @@ export default function Host() {
             <div className="mt-8 text-gray-500 font-bold">
               Menunggu jawaban: {players.filter(p => p.currentAnswer === null).length} pemain lagi...
             </div>
+          </div>
+        )}
+
+        {gameState === 'ANSWER_REVIEW' && (
+          <div className="bg-white rounded-3xl p-10 shadow-xl text-center border-4 border-indigo-200">
+            <h2 className="text-3xl font-black text-indigo-700 mb-6">Waktu Habis! Ini Jawaban yang Benar:</h2>
+            <h3 className="text-xl font-semibold text-gray-700 mb-8 text-left whitespace-pre-wrap border-b pb-4">{questions[currentQuestionIndex].text}</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              {questions[currentQuestionIndex].options.map((opt, i) => {
+                const isCorrect = i === questions[currentQuestionIndex].correctAnswer;
+                return (
+                  <div key={i} className={`p-6 rounded-2xl text-left text-lg font-bold ${isCorrect ? 'bg-green-100 border-4 border-green-500 text-green-900 shadow-lg' : 'bg-gray-100 border-2 border-gray-300 text-gray-500 opacity-50'}`}>
+                    {isCorrect ? '✅ ' : '❌ '} {opt}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <button 
+              onClick={showLeaderboard}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-10 rounded-full shadow-lg transition text-xl w-full"
+            >
+              Lanjut ke Papan Peringkat
+            </button>
           </div>
         )}
 
