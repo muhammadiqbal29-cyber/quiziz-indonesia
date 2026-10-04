@@ -136,8 +136,15 @@ export default function Player() {
         )}
 
         {gameState === 'QUESTION' && (
-          <div className="w-full max-w-2xl text-center">
-            <div className="text-5xl font-black text-indigo-600 mb-10">{timeLeft}</div>
+          <div className="w-full max-w-4xl text-center">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-gray-500 font-bold text-xl">Waktu:</span>
+              <span className="text-5xl font-black text-red-500">{timeLeft}</span>
+            </div>
+            
+            <div className="bg-white rounded-3xl p-6 shadow-xl mb-8 border-2 border-indigo-100">
+              <h2 className="text-xl md:text-2xl font-semibold text-gray-800 text-left whitespace-pre-wrap">{question?.text}</h2>
+            </div>
             
             {myAnswer === null ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -145,9 +152,9 @@ export default function Player() {
                   <button 
                     key={i}
                     onClick={() => submitAnswer(i)}
-                    className={`${colors[i % 4]} hover:opacity-80 text-white font-bold py-16 px-6 rounded-2xl shadow-lg transform transition active:scale-95 text-2xl h-48 flex items-center justify-center`}
+                    className={`${colors[i % 4]} hover:opacity-90 text-white font-bold py-6 px-6 rounded-2xl shadow-lg transform transition active:scale-95 text-lg md:text-xl min-h-[120px] flex items-center justify-center`}
                   >
-                    Pilihan {['A', 'B', 'C', 'D'][i]}
+                    {opt}
                   </button>
                 ))}
               </div>
