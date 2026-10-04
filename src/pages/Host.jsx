@@ -6,13 +6,21 @@ import Papa from 'papaparse';
 export default function Host() {
   const [peerId, setPeerId] = useState('');
   const [players, setPlayers] = useState([]);
-  const [gameState, setGameState] = useState('LOBBY'); // LOBBY, QUESTION, LEADERBOARD, END
+  const [gameState, setGameState] = useState('LOBBY'); // LOBBY, QUESTION, ANSWER_REVIEW, LEADERBOARD, END
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes per question
   
   const peerRef = useRef(null);
   const connectionsRef = useRef({}); // { peerId: DataConnection }
   const timerRef = useRef(null);
+  const currentIndexRef = useRef(0);
+  const timeLeftRef = useRef(120);
+  const playersRef = useRef([]);
+
+  // Sync state to refs for event listeners
+  useEffect(() => { currentIndexRef.current = currentQuestionIndex; }, [currentQuestionIndex]);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+  useEffect(() => { playersRef.current = players; }, [players]);
 
   useEffect(() => {
     // Generate a simple 4 letter ID
@@ -27,14 +35,12 @@ export default function Host() {
       conn.on('data', (data) => {
         if (data.type === 'JOIN') {
           setPlayers((prev) => {
-            // Cek apakah pemain dengan ID yang sama atau Nama yang sama sudah ada
             if (prev.find(p => p.id === conn.peer || p.name === data.name)) {
-              return prev; // Jangan tambahkan jika sudah ada
+              return prev; 
             }
             return [...prev, { id: conn.peer, name: data.name, score: 0, currentAnswer: null }];
           });
           connectionsRef.current[conn.peer] = conn;
-          // Send current state back to player
           conn.send({ type: 'STATE_UPDATE', state: 'LOBBY' });
         } else if (data.type === 'ANSWER') {
           handlePlayerAnswer(conn.peer, data.answer);
@@ -68,9 +74,10 @@ export default function Host() {
   };
 
   const startQuestion = (index) => {
-    // Reset player answers
     setPlayers(prev => prev.map(p => ({ ...p, currentAnswer: null })));
     setTimeLeft(120);
+    timeLeftRef.current = 120;
+    
     const q = questions[index];
     broadcast({ 
       type: 'STATE_UPDATE', 
@@ -84,7 +91,7 @@ export default function Host() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timerRef.current);
-          handleTimeUp(index);
+          handleTimeUp(currentIndexRef.current);
           return 0;
         }
         return prev - 1;
@@ -106,28 +113,35 @@ export default function Host() {
       if (allAnswered && timerRef.current) {
         clearInterval(timerRef.current);
         // We use setTimeout to let state update first
-        setTimeout(() => handleTimeUp(currentQuestionIndex, newPlayers), 100);
+        setTimeout(() => handleTimeUp(currentIndexRef.current, newPlayers), 100);
       }
       return newPlayers;
     });
   };
 
-  const handleTimeUp = (index, currentPlayers = players) => {
+  const forceTimeUp = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    handleTimeUp(currentQuestionIndex, playersRef.current);
+  };
+
+  const handleTimeUp = (index, currentPlayers = null) => {
+    if (timerRef.current) clearInterval(timerRef.current);
     const q = questions[index];
+    const playersToUse = currentPlayers || playersRef.current;
     
     // Calculate scores
-    const updatedPlayers = currentPlayers.map(p => {
+    const updatedPlayers = playersToUse.map(p => {
       const isCorrect = p.currentAnswer === q.correctAnswer;
       return {
         ...p,
-        score: isCorrect ? p.score + 100 + Math.floor(timeLeft) : p.score,
+        score: isCorrect ? p.score + 100 + Math.floor(timeLeftRef.current) : p.score,
         lastCorrect: isCorrect
       };
     });
     setPlayers(updatedPlayers);
-    setGameState('ANSWER_REVIEW'); // Berhenti di sini dulu untuk menampilkan jawaban benar
+    setGameState('ANSWER_REVIEW');
 
-    // Send result to each player individually so they know if they were correct (for memes)
+    // Send result to each player individually
     Object.values(connectionsRef.current).forEach(conn => {
       const player = updatedPlayers.find(p => p.id === conn.peer);
       conn.send({
@@ -219,8 +233,16 @@ export default function Host() {
               ))}
             </div>
             
-            <div className="mt-8 text-gray-500 font-bold">
-              Menunggu jawaban: {players.filter(p => p.currentAnswer === null).length} pemain lagi...
+            <div className="mt-8 flex flex-col items-center justify-center gap-4">
+              <div className="text-gray-500 font-bold text-lg">
+                Menunggu jawaban: {players.filter(p => p.currentAnswer === null).length} pemain lagi...
+              </div>
+              <button 
+                onClick={forceTimeUp}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full shadow-md transition"
+              >
+                Hentikan Waktu & Lihat Jawaban
+              </button>
             </div>
           </div>
         )}
