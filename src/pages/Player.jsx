@@ -18,21 +18,8 @@ export default function Player() {
   // Result state
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
-  const [memeUrl, setMemeUrl] = useState('');
   
   const connRef = useRef(null);
-  const memesRef = useRef([]);
-
-  useEffect(() => {
-    // Fetch memes
-    fetch('https://api.imgflip.com/get_memes')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          memesRef.current = data.data.memes;
-        }
-      });
-  }, []);
 
   const handleJoin = (e) => {
     e.preventDefault();
@@ -59,11 +46,6 @@ export default function Player() {
           } else if (data.state === 'ANSWER_RESULT') {
             setIsCorrect(data.isCorrect);
             setScore(data.score);
-            // Pick a random meme
-            if (memesRef.current.length > 0) {
-              const randomMeme = memesRef.current[Math.floor(Math.random() * memesRef.current.length)];
-              setMemeUrl(randomMeme.url);
-            }
           }
         }
       });
@@ -174,12 +156,6 @@ export default function Player() {
             <p className="text-gray-500 font-medium mb-6">
               {isCorrect ? '+100 Poin & Bonus Waktu' : 'Tetap semangat!'}
             </p>
-            
-            {memeUrl && (
-              <div className="mt-4 rounded-xl overflow-hidden shadow-lg border-4 border-gray-100">
-                <img src={memeUrl} alt="Meme" className="w-full h-auto max-h-64 object-contain bg-black" />
-              </div>
-            )}
           </div>
         )}
 
