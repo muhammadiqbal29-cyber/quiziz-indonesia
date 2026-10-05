@@ -156,6 +156,11 @@ export default function Host() {
 
   const showLeaderboard = () => {
     setGameState('LEADERBOARD');
+    broadcast({ 
+      type: 'STATE_UPDATE', 
+      state: 'LEADERBOARD', 
+      players: playersRef.current.sort((a,b) => b.score - a.score) 
+    });
   };
 
   const nextQuestion = () => {

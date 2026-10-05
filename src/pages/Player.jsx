@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Peer } from 'peerjs';
+import { playCorrectSound, playWrongSound } from '../utils/sound';
 
 const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
 
@@ -10,7 +11,7 @@ export default function Player() {
   
   const [name, setName] = useState('');
   const [isJoined, setIsJoined] = useState(false);
-  const [gameState, setGameState] = useState('LOBBY'); // LOBBY, QUESTION, ANSWER_RESULT, END
+  const [gameState, setGameState] = useState('LOBBY'); // LOBBY, QUESTION, ANSWER_RESULT, LEADERBOARD, END
   const [question, setQuestion] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [myAnswer, setMyAnswer] = useState(null);
@@ -18,6 +19,7 @@ export default function Player() {
   // Result state
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
+  const [leaderboard, setLeaderboard] = useState([]);
   
   const connRef = useRef(null);
 
@@ -46,6 +48,10 @@ export default function Player() {
           } else if (data.state === 'ANSWER_RESULT') {
             setIsCorrect(data.isCorrect);
             setScore(data.score);
+            if (data.isCorrect) playCorrectSound();
+            else playWrongSound();
+          } else if (data.state === 'LEADERBOARD' || data.state === 'END') {
+            if (data.players) setLeaderboard(data.players);
           }
         }
       });
@@ -156,6 +162,24 @@ export default function Player() {
             <p className="text-gray-500 font-medium mb-6">
               {isCorrect ? '+100 Poin & Bonus Waktu' : 'Tetap semangat!'}
             </p>
+          </div>
+        )}
+
+        {gameState === 'LEADERBOARD' && (
+          <div className="w-full max-w-lg bg-white rounded-3xl p-8 shadow-2xl text-center">
+            <h2 className="text-3xl font-black text-indigo-700 mb-6">Papan Peringkat</h2>
+            <div className="space-y-3">
+              {leaderboard.map((p, i) => (
+                <div key={p.id} className={`flex justify-between items-center p-3 rounded-xl border-l-8 ${p.name === name ? 'bg-indigo-100 border-indigo-600' : 'bg-gray-50 border-gray-300'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl font-black text-gray-500">#{i+1}</span>
+                    <span className="text-lg font-bold text-gray-800">{p.name} {p.name === name && '(Kamu)'}</span>
+                  </div>
+                  <span className="text-xl font-bold text-indigo-600">{p.score}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-gray-500 mt-6 animate-pulse font-semibold">Menunggu Host...</p>
           </div>
         )}
 
