@@ -5,6 +5,22 @@ import { playCorrectSound, playWrongSound } from '../utils/sound';
 
 const colors = ['bg-red-500', 'bg-blue-500', 'bg-yellow-500', 'bg-green-500'];
 
+const correctGifs = [
+  'https://media.tenor.com/J7tIovtH1z0AAAAi/happy-cat-jumping.gif', // Happy cat
+  'https://media.tenor.com/T_tQkPxyfTMAAAAi/minions-cheer.gif', // Minions
+  'https://media.tenor.com/aC-5iR3Qo88AAAAi/spongebob-squarepants.gif', // Spongebob
+  'https://media.tenor.com/2cPx1iQJ28sAAAAi/thumbs-up-kid.gif', // Thumbs up kid
+  'https://media.tenor.com/5lF8x5yY93AAAAAi/nice-michael-rosen.gif' // Nice Michael Rosen
+];
+
+const wrongGifs = [
+  'https://media.tenor.com/vHq4wA9NItAAAAAi/sad-cat.gif', // Sad cat
+  'https://media.tenor.com/eDTRHroN6aYAAAAi/confused-john-travolta.gif', // Confused Travolta
+  'https://media.tenor.com/k4_hF8qVp5oAAAAi/facepalm-picard.gif', // Facepalm
+  'https://media.tenor.com/OcbE9a5W5S8AAAAi/spongebob-sad.gif', // Spongebob sad
+  'https://media.tenor.com/n14aTls34o0AAAAi/monkey-disappointed.gif' // Disappointed monkey
+];
+
 export default function Player() {
   const [searchParams] = useSearchParams();
   const pin = searchParams.get('pin');
@@ -20,6 +36,7 @@ export default function Player() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [currentGif, setCurrentGif] = useState('');
   
   const connRef = useRef(null);
 
@@ -48,8 +65,16 @@ export default function Player() {
           } else if (data.state === 'ANSWER_RESULT') {
             setIsCorrect(data.isCorrect);
             setScore(data.score);
-            if (data.isCorrect) playCorrectSound();
-            else playWrongSound();
+            
+            // Pilih GIF secara acak berdasarkan hasil
+            if (data.isCorrect) {
+              playCorrectSound();
+              setCurrentGif(correctGifs[Math.floor(Math.random() * correctGifs.length)]);
+            } else {
+              playWrongSound();
+              setCurrentGif(wrongGifs[Math.floor(Math.random() * wrongGifs.length)]);
+            }
+            
           } else if (data.state === 'LEADERBOARD' || data.state === 'END') {
             if (data.players) setLeaderboard(data.players);
           }
@@ -162,6 +187,12 @@ export default function Player() {
             <p className="text-gray-500 font-medium mb-6">
               {isCorrect ? '+100 Poin & Bonus Waktu' : 'Tetap semangat!'}
             </p>
+            
+            {currentGif && (
+              <div className="mt-4 rounded-xl overflow-hidden shadow-lg border-4 border-gray-100 flex justify-center bg-gray-50 p-2">
+                <img src={currentGif} alt="Meme GIF" className="max-h-64 rounded-lg object-contain" />
+              </div>
+            )}
           </div>
         )}
 
