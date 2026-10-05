@@ -131,11 +131,16 @@ export default function Host() {
     
     // Calculate scores
     const updatedPlayers = playersToUse.map(p => {
-      const isCorrect = p.currentAnswer === q.correctAnswer;
+      let status = 'Salah';
+      if (p.currentAnswer === null) status = 'Tidak Menjawab';
+      else if (p.currentAnswer === q.correctAnswer) status = 'Benar';
+
+      const isCorrect = status === 'Benar';
       return {
         ...p,
         score: isCorrect ? p.score + 100 + Math.floor(timeLeftRef.current) : p.score,
-        lastCorrect: isCorrect
+        lastCorrect: isCorrect,
+        history: [...(p.history || []), status]
       };
     });
     setPlayers(updatedPlayers);
@@ -176,16 +181,25 @@ export default function Host() {
 
   const downloadResults = () => {
     const sorted = [...players].sort((a,b) => b.score - a.score);
-    const data = sorted.map((p, i) => ({
-      Peringkat: i + 1,
-      Nama: p.name,
-      Skor: p.score
-    }));
+    const data = sorted.map((p, i) => {
+      const row = {
+        Peringkat: i + 1,
+        Nama: p.name,
+        Skor_Total: p.score
+      };
+      
+      // Tambahkan detail status jawaban setiap soal
+      questions.forEach((q, qIndex) => {
+        row[`Soal_${qIndex + 1}`] = (p.history && p.history[qIndex]) ? p.history[qIndex] : '-';
+      });
+      
+      return row;
+    });
     const csv = Papa.unparse(data);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'hasil_kuis.csv';
+    link.download = 'hasil_kuis_lengkap.csv';
     link.click();
   };
 
