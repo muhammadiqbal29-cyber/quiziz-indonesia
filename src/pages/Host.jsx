@@ -25,10 +25,27 @@ export default function Host() {
   useEffect(() => {
     // Generate a simple 4 letter ID
     const id = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const peer = new Peer(id);
+    const peer = new Peer(id, {
+      config: {
+        'iceServers': [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    });
     
     peer.on('open', (id) => {
       setPeerId(id);
+    });
+
+    // Otomatis reconnect jika terputus dari server public (sering terjadi jika didiamkan > 1 menit)
+    peer.on('disconnected', () => {
+      console.log('Terputus dari server, menghubungkan kembali...');
+      peer.reconnect();
+    });
+
+    peer.on('error', (err) => {
+      console.error('PeerJS error:', err);
     });
 
     peer.on('connection', (conn) => {
@@ -50,6 +67,10 @@ export default function Host() {
       conn.on('close', () => {
         setPlayers((prev) => prev.filter(p => p.id !== conn.peer));
         delete connectionsRef.current[conn.peer];
+      });
+      
+      conn.on('error', (err) => {
+        console.error('Connection error:', err);
       });
     });
 

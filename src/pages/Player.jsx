@@ -44,7 +44,15 @@ export default function Player() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const peer = new Peer();
+    // Tambahkan konfigurasi server STUN publik tambahan agar lebih stabil di jaringan sekolah
+    const peer = new Peer({
+      config: {
+        'iceServers': [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    });
     
     peer.on('open', () => {
       const conn = peer.connect(pin);
@@ -80,6 +88,18 @@ export default function Player() {
           }
         }
       });
+      
+      conn.on('error', (err) => {
+        alert('Koneksi terputus: ' + err.message);
+      });
+    });
+
+    peer.on('error', (err) => {
+      if (err.type === 'peer-unavailable') {
+        alert('PIN Game tidak ditemukan! Pastikan Host sudah membuka Lobby.');
+      } else {
+        alert('Gagal terhubung ke server: ' + err.message);
+      }
     });
   };
 
